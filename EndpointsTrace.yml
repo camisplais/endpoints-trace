@@ -1,0 +1,2221 @@
+openapi: 3.0.4
+info:
+  title: API TRACE
+  description: |
+    API para la gestión de embarques, viajes y pruebas de entrega.
+  contact:
+    email: camjarag12@gmail.com
+  version: 1.0.0
+
+servers:
+  - url: https://api.trace.cool
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # ─── Auth ────────────────────────────────────────────────────────────────
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s]{3,20}$'
+          example: "jperez"
+        password:
+          type: string
+          maxLength: 128
+          example: "miPassword123"
+
+    OtpVerifyRequest:
+      type: object
+      required: [username, otp]
+      properties:
+        username:
+          type: string
+          example: "jperez"
+        otp:
+          type: string
+          example: "483921"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Segundos hasta expiración
+          example: 3600
+        requires_otp:
+          type: boolean
+          description: Si es true, el login se completa en /auth/verify-otp
+          example: true
+
+    # ─── Roles ───────────────────────────────────────────────────────────────
+
+    Rol:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
+          example: "operador"
+
+    # ─── Empleados ───────────────────────────────────────────────────────────
+
+    Empleado:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        no_empleado:
+          type: integer
+          example: 10042
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 36
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,36}$'
+          example: "Juan"
+        apellido_paterno:
+          type: string
+          minLength: 2
+          maxLength: 21
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{2,21}$'
+          example: "Pérez"
+        apellido_materno:
+          type: string
+          minLength: 2
+          maxLength: 21
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{2,21}$|^$'
+          nullable: true
+          example: "Rodríguez"
+        fecha_nacimiento:
+          type: string
+          format: date
+          example: "1990-05-15"
+        fecha_ingreso:
+          type: string
+          format: date
+          example: "2020-01-10"
+        imagen:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "https://api.trace.cool/files/empleados/foto-001.jpg"
+        departamento:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
+          example: "Logística"
+        puesto:
+          type: string
+          minLength: 3
+          maxLength: 34
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,34}$'
+          example: "Chofer"
+        estado:
+          type: string
+          enum: [disponible, ocupado]
+          example: "disponible"
+
+    EmpleadoCreate:
+      type: object
+      required: [no_empleado, nombre, apellido_paterno, fecha_nacimiento, fecha_ingreso, departamento, puesto]
+      properties:
+        no_empleado:
+          type: integer
+          example: 10042
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 36
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,36}$'
+          example: "Juan"
+        apellido_paterno:
+          type: string
+          minLength: 2
+          maxLength: 21
+          example: "Pérez"
+        apellido_materno:
+          type: string
+          nullable: true
+          example: "Rodríguez"
+        fecha_nacimiento:
+          type: string
+          format: date
+          example: "1990-05-15"
+        fecha_ingreso:
+          type: string
+          format: date
+          example: "2020-01-10"
+        imagen:
+          type: string
+          nullable: true
+        departamento:
+          type: string
+          minLength: 3
+          maxLength: 20
+          example: "Logística"
+        puesto:
+          type: string
+          minLength: 3
+          maxLength: 34
+          example: "Chofer"
+
+    # ─── Usuarios ────────────────────────────────────────────────────────────
+
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        rol_id:
+          type: integer
+          example: 2
+        rol:
+          $ref: '#/components/schemas/Rol'
+        empleado_id:
+          type: integer
+          example: 5
+        empleado:
+          $ref: '#/components/schemas/Empleado'
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s]{3,20}$'
+          example: "jperez"
+        estado:
+          type: boolean
+          description: true = activo, false = desactivado
+          example: true
+        google2fa_confirmed:
+          type: boolean
+          nullable: true
+          example: false
+
+    UsuarioCreate:
+      type: object
+      required: [rol_id, empleado_id, username, password]
+      properties:
+        rol_id:
+          type: integer
+          example: 2
+        empleado_id:
+          type: integer
+          example: 5
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s]{3,20}$'
+          example: "jperez"
+        password:
+          type: string
+          maxLength: 128
+          example: "miPassword123"
+
+    UsuarioUpdate:
+      type: object
+      properties:
+        rol_id:
+          type: integer
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+        estado:
+          type: boolean
+
+    # ─── Clientes ────────────────────────────────────────────────────────────
+
+    Cliente:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 26
+          pattern: '^(?!\s*$).{3,26}$'
+          example: "Ford Motor Company"
+        tipo:
+          type: string
+          enum: [médico, automotriz, aeroespacial, eléctrico]
+          example: "automotriz"
+        ubicacion:
+          type: string
+          minLength: 3
+          maxLength: 45
+          pattern: '^.{3,45}$'
+          example: "Hermosillo, Sonora"
+        documentos:
+          type: array
+          description: Documentos que este cliente debe subir por cada embarque
+          items:
+            $ref: '#/components/schemas/Documento'
+          example:
+            - id: 1
+              nombre: "Carta de porte"
+            - id: 3
+              nombre: "Factura"
+
+    ClienteCreate:
+      type: object
+      required: [nombre, tipo, ubicacion, documento_ids]
+      properties:
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 26
+          pattern: '^(?!\s*$).{3,26}$'
+          example: "Ford Motor Company"
+        tipo:
+          type: string
+          enum: [médico, automotriz, aeroespacial, eléctrico]
+          example: "automotriz"
+        ubicacion:
+          type: string
+          minLength: 3
+          maxLength: 45
+          example: "Hermosillo, Sonora"
+        documento_ids:
+          type: array
+          description: IDs de los documentos requeridos para este cliente. El backend genera un registro en doc_cliente por cada uno.
+          minItems: 1
+          items:
+            type: integer
+          example: [1, 3, 4, 5]
+
+    # ─── Documentos ──────────────────────────────────────────────────────────
+
+    Documento:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 40
+          pattern: '^(?!\s*$).{3,40}$'
+          example: "Carta de porte"
+        descripcion:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "Requerido para clientes automotrices en traslados interestatales"
+
+    DocumentoCreate:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 40
+          example: "Carta de porte"
+        descripcion:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "Requerido para clientes automotrices en traslados interestatales"
+
+    # ─── Doc Cliente (relación cliente ↔ documentos) ─────────────────────────
+
+    DocCliente:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        cliente_id:
+          type: integer
+          example: 1
+        documento_id:
+          type: integer
+          example: 3
+        documento:
+          $ref: '#/components/schemas/Documento'
+
+
+    # ─── Transporte ──────────────────────────────────────────────────────────
+
+    Transporte:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        placas:
+          type: string
+          pattern: '^[0-9]{2}-[A-Z]{2}-[0-9][A-Z]$'
+          example: "12-AB-3C"
+        marca:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^(?!\s*$).{3,30}$'
+          example: "Kenworth"
+        carga_util:
+          type: number
+          format: float
+          example: 22500.00
+          description: Carga útil en kg
+        imagen:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "https://api.trace.cool/files/transportes/kenworth-001.jpg"
+        estado:
+          type: string
+          enum: [viaje, planta]
+          example: "planta"
+
+    TransporteCreate:
+      type: object
+      required: [placas, marca, carga_util]
+      properties:
+        placas:
+          type: string
+          pattern: '^[0-9]{2}-[A-Z]{2}-[0-9][A-Z]$'
+          example: "12-AB-3C"
+        marca:
+          type: string
+          minLength: 3
+          maxLength: 30
+          example: "Kenworth"
+        carga_util:
+          type: number
+          format: float
+          example: 22500.00
+        imagen:
+          type: string
+          nullable: true
+
+    # ─── Embarques ───────────────────────────────────────────────────────────
+
+    Embarque:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        cliente_id:
+          type: integer
+          example: 1
+        cliente:
+          $ref: '#/components/schemas/Cliente'
+        empleado_customer_id:
+          type: integer
+          example: 7
+          description: Empleado de customer service que creó el embarque
+        empleado_customer:
+          $ref: '#/components/schemas/Empleado'
+        plan_embarque:
+          type: string
+          maxLength: 100
+          example: "PE-2024-00892"
+          description: ID del plan de embarque en el ERP
+        fecha:
+          type: string
+          format: date
+          example: "2024-12-01"
+        hora:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$'
+          example: "08:30:00"
+        tipo:
+          type: string
+          enum: [expeditado, regular]
+          example: "regular"
+        tarima:
+          type: integer
+          example: 4
+        cantidad_piezas:
+          type: integer
+          example: 320
+
+    EmbarqueCreate:
+      type: object
+      required: [cliente_id, plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas]
+      properties:
+        cliente_id:
+          type: integer
+          example: 1
+        plan_embarque:
+          type: string
+          maxLength: 100
+          example: "PE-2024-00892"
+        fecha:
+          type: string
+          format: date
+          example: "2024-12-01"
+        hora:
+          type: string
+          example: "08:30:00"
+        tipo:
+          type: string
+          enum: [expeditado, regular]
+          example: "regular"
+        tarima:
+          type: integer
+          example: 4
+        cantidad_piezas:
+          type: integer
+          example: 320
+
+    # ─── Pruebas de Entrega ──────────────────────────────────────────────────
+
+    PruebaEntrega:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        embarque_id:
+          type: integer
+          example: 1
+        doc_cliente_id:
+          type: integer
+          example: 2
+          description: Documento requerido según el tipo de cliente
+        doc_cliente:
+          $ref: '#/components/schemas/DocCliente'
+        ruta_imagen:
+          type: string
+          maxLength: 255
+          example: "https://api.trace.cool/files/pruebas/prueba-001.jpg"
+
+    PruebaEntregaCreate:
+      type: object
+      required: [doc_cliente_id, ruta_imagen]
+      properties:
+        doc_cliente_id:
+          type: integer
+          example: 2
+        ruta_imagen:
+          type: string
+          maxLength: 255
+          example: "https://api.trace.cool/files/pruebas/prueba-001.jpg"
+
+    # ─── Viajes ──────────────────────────────────────────────────────────────
+
+    Viaje:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        empleado_chofer_id:
+          type: integer
+          example: 3
+        empleado_chofer:
+          $ref: '#/components/schemas/Empleado'
+        empleado_embarques_id:
+          type: integer
+          example: 8
+        empleado_embarques:
+          $ref: '#/components/schemas/Empleado'
+        transporte_id:
+          type: integer
+          example: 2
+        transporte:
+          $ref: '#/components/schemas/Transporte'
+        embarques:
+          type: array
+          items:
+            $ref: '#/components/schemas/Embarque'
+          description: Embarques asignados a este viaje (via viaje_embarque)
+
+    ViajeCreate:
+      type: object
+      required: [empleado_chofer_id, empleado_embarques_id, transporte_id, embarque_ids]
+      properties:
+        empleado_chofer_id:
+          type: integer
+          example: 3
+        empleado_embarques_id:
+          type: integer
+          example: 8
+        transporte_id:
+          type: integer
+          example: 2
+        embarque_ids:
+          type: array
+          items:
+            type: integer
+          example: [1, 2, 5]
+          description: IDs de los embarques que irán en este viaje
+
+    # ─── Seguimiento de Viaje ─────────────────────────────────────────────────
+
+    SeguimientoViaje:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        viaje_id:
+          type: integer
+          example: 1
+        entrada:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-12-01T07:45:00Z"
+        salida:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-12-01T16:30:00Z"
+        empleado_caseta_entrada_id:
+          type: integer
+          example: 12
+        empleado_caseta_entrada:
+          $ref: '#/components/schemas/Empleado'
+        empleado_caseta_salida_id:
+          type: integer
+          example: 13
+        empleado_caseta_salida:
+          $ref: '#/components/schemas/Empleado'
+        empleado_qr_id:
+          type: integer
+          example: 3
+          description: Empleado (chofer) que generó el QR
+        empleado_qr:
+          $ref: '#/components/schemas/Empleado'
+        qr:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "https://api.trace.cool/files/qr/qr-viaje-001.png"
+
+
+    QrGenerateResponse:
+      type: object
+      properties:
+        qr_url:
+          type: string
+          example: "https://api.trace.cool/files/qr/qr-viaje-001.png"
+        qr_data:
+          type: string
+          description: Contenido codificado en el QR
+          example: "TRACE-VIA-001-2024120108300"
+
+    QrConsumeRequest:
+      type: object
+      description: El empleado de caseta escanea/consume el QR del chofer
+      required: [qr_data, tipo]
+      properties:
+        qr_data:
+          type: string
+          description: Contenido leído del QR del chofer
+          example: "TRACE-VIA-001-2024120108300"
+        tipo:
+          type: string
+          enum: [entrada, salida]
+          example: "entrada"
+
+    # ─── Solicitudes ─────────────────────────────────────────────────────────
+
+    Solicitud:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_viaje_embarque:
+          type: integer
+          example: 4
+        id_empleado_emisor:
+          type: integer
+          example: 7
+        empleado_emisor:
+          $ref: '#/components/schemas/Empleado'
+        id_empleado_receptor:
+          type: integer
+          example: 2
+        empleado_receptor:
+          $ref: '#/components/schemas/Empleado'
+        tipo:
+          type: string
+          enum: [solicitar QR, pruebas de entrega desfasadas, pruebas de entrega pendientes, estatus de salida]
+          example: "solicitar QR"
+        estado:
+          type: string
+          enum: [aceptado, rechazado]
+          nullable: true
+          example: "aceptado"
+
+    SolicitudCreate:
+      type: object
+      required: [id_viaje_embarque, id_empleado_receptor, tipo]
+      properties:
+        id_viaje_embarque:
+          type: integer
+          example: 4
+        id_empleado_receptor:
+          type: integer
+          example: 2
+        tipo:
+          type: string
+          enum: [solicitar QR, pruebas de entrega desfasadas, pruebas de entrega pendientes, estatus de salida]
+          example: "solicitar QR"
+
+    SolicitudResponder:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [aceptado, rechazado]
+          example: "aceptado"
+
+    # ─── Notificaciones ──────────────────────────────────────────────────────
+
+    Notificacion:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        id_solicitud:
+          type: integer
+          example: 3
+        solicitud:
+          $ref: '#/components/schemas/Solicitud'
+        notificacion:
+          type: string
+          minLength: 2
+          maxLength: 30
+          pattern: '^(?!\s*$).{2,30}$'
+          example: "Nueva solicitud de QR"
+
+    # ─── Genéricos ───────────────────────────────────────────────────────────
+
+    PaginatedMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        last_page:
+          type: integer
+          example: 5
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "El campo username es requerido"
+
+tags:
+  - name: Autenticación
+    description: Login con OTP propio
+  - name: Roles
+    description: Catálogo de roles del sistema
+  - name: Empleados
+    description: Gestión de empleados de la planta
+  - name: Usuarios
+    description: Cuentas de acceso al sistema (ligadas a empleados)
+  - name: Clientes
+    description: Clientes activos de la empresa
+  - name: Documentos
+    description: Catálogo de documentos requeridos para embarques
+  - name: Transporte
+    description: Unidades de transporte disponibles
+  - name: Embarques
+    description: Planeación de embarques (solo customer service)
+  - name: Pruebas de Entrega
+    description: Evidencias fotográficas por embarque y documento
+  - name: Viajes
+    description: Viajes que agrupan embarques con chofer y transporte
+  - name: Seguimiento de Viaje
+    description: Entradas, salidas y QR de los viajes
+  - name: Solicitudes
+    description: Solicitudes internas entre empleados
+  - name: Notificaciones
+    description: Notificaciones generadas por solicitudes
+
+paths:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 1. AUTENTICACIÓN
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión
+      description: |
+        Valida credenciales. Si `requires_otp` es true, el token definitivo
+        se obtiene completando el flujo en `/auth/verify-otp`.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Credenciales válidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/verify-otp:
+    post:
+      tags: [Autenticación]
+      summary: Verificar OTP
+      description: Verifica el código OTP enviado al empleado para completar el inicio de sesión.
+      operationId: verifyOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+      responses:
+        '200':
+          description: OTP válido, token JWT generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: OTP inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 2. ROLES
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /roles:
+    get:
+      tags: [Roles]
+      summary: Listar roles
+      operationId: getRoles
+      responses:
+        '200':
+          description: Lista de roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rol'
+
+    post:
+      tags: [Roles]
+      summary: Crear rol
+      operationId: createRol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre:
+                  type: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
+                  example: "operador"
+      responses:
+        '201':
+          description: Rol creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rol'
+        '409':
+          description: El nombre del rol ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /roles/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [Roles]
+      summary: Obtener rol por ID
+      operationId: getRolById
+      responses:
+        '200':
+          description: Rol encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rol'
+        '404':
+          description: Rol no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Roles]
+      summary: Actualizar rol
+      operationId: updateRol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre:
+                  type: string
+                  minLength: 3
+                  maxLength: 20
+      responses:
+        '200':
+          description: Rol actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rol'
+        '404':
+          description: Rol no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Roles]
+      summary: Eliminar rol
+      operationId: deleteRol
+      responses:
+        '204':
+          description: Rol eliminado
+        '404':
+          description: Rol no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 3. EMPLEADOS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /empleados:
+    get:
+      tags: [Empleados]
+      summary: Listar empleados
+      operationId: getEmpleados
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: departamento
+          in: query
+          schema: { type: string }
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [disponible, ocupado]
+      responses:
+        '200':
+          description: Lista de empleados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Empleado'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+    post:
+      tags: [Empleados]
+      summary: Crear empleado
+      operationId: createEmpleado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpleadoCreate'
+      responses:
+        '201':
+          description: Empleado creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empleado'
+        '409':
+          description: no_empleado ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /empleados/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Empleados]
+      summary: Obtener empleado por ID
+      operationId: getEmpleadoById
+      responses:
+        '200':
+          description: Empleado encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empleado'
+        '404':
+          description: Empleado no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Empleados]
+      summary: Actualizar empleado
+      operationId: updateEmpleado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpleadoCreate'
+      responses:
+        '200':
+          description: Empleado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Empleado'
+        '404':
+          description: Empleado no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Empleados]
+      summary: Eliminar empleado
+      operationId: deleteEmpleado
+      responses:
+        '204':
+          description: Empleado eliminado
+        '404':
+          description: Empleado no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 4. USUARIOS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /usuarios:
+    get:
+      tags: [Usuarios]
+      summary: Listar usuarios
+      operationId: getUsuarios
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: rol_id
+          in: query
+          schema: { type: integer }
+        - name: estado
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Usuario'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+    post:
+      tags: [Usuarios]
+      summary: Crear usuario
+      operationId: createUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioCreate'
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '409':
+          description: Username ya en uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /usuarios/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Usuarios]
+      summary: Obtener usuario por ID
+      operationId: getUsuarioById
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Usuarios]
+      summary: Actualizar usuario
+      operationId: updateUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioUpdate'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Usuarios]
+      summary: Eliminar usuario
+      operationId: deleteUsuario
+      responses:
+        '204':
+          description: Usuario eliminado
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /usuarios/{id}/password:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Usuarios]
+      summary: Cambiar contraseña
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password_actual, password_nuevo]
+              properties:
+                password_actual:
+                  type: string
+                password_nuevo:
+                  type: string
+                  maxLength: 128
+      responses:
+        '200':
+          description: Contraseña actualizada
+        '401':
+          description: Contraseña actual incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 5. CLIENTES
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /clientes:
+    get:
+      tags: [Clientes]
+      summary: Listar clientes
+      operationId: getClientes
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [médico, automotriz, aeroespacial, eléctrico]
+        - name: search
+          in: query
+          description: Buscar por nombre
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Cliente'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+    post:
+      tags: [Clientes]
+      summary: Crear cliente
+      operationId: createCliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteCreate'
+      responses:
+        '201':
+          description: Cliente creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '409':
+          description: Nombre de cliente ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /clientes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Clientes]
+      summary: Obtener cliente por ID
+      operationId: getClienteById
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Clientes]
+      summary: Actualizar cliente
+      operationId: updateCliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteCreate'
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Clientes]
+      summary: Eliminar cliente
+      operationId: deleteCliente
+      responses:
+        '204':
+          description: Cliente eliminado
+        '404':
+          description: Cliente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 6. DOCUMENTOS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /documentos:
+    get:
+      tags: [Documentos]
+      summary: Listar documentos
+      operationId: getDocumentos
+      responses:
+        '200':
+          description: Lista de documentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Documento'
+
+    post:
+      tags: [Documentos]
+      summary: Crear documento
+      operationId: createDocumento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentoCreate'
+      responses:
+        '201':
+          description: Documento creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Documento'
+        '409':
+          description: Nombre ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documentos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Documentos]
+      summary: Obtener documento por ID
+      operationId: getDocumentoById
+      responses:
+        '200':
+          description: Documento encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Documento'
+        '404':
+          description: Documento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Documentos]
+      summary: Actualizar documento
+      operationId: updateDocumento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentoCreate'
+      responses:
+        '200':
+          description: Documento actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Documento'
+        '404':
+          description: Documento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Documentos]
+      summary: Eliminar documento
+      operationId: deleteDocumento
+      responses:
+        '204':
+          description: Documento eliminado
+        '404':
+          description: Documento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # 7. TRANSPORTE
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /transporte:
+    get:
+      tags: [Transporte]
+      summary: Listar unidades de transporte
+      operationId: getTransportes
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [viaje, planta]
+      responses:
+        '200':
+          description: Lista de transportes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transporte'
+
+    post:
+      tags: [Transporte]
+      summary: Registrar unidad de transporte
+      operationId: createTransporte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransporteCreate'
+      responses:
+        '201':
+          description: Transporte registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transporte'
+        '409':
+          description: Placas ya registradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transporte/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Transporte]
+      summary: Obtener transporte por ID
+      operationId: getTransporteById
+      responses:
+        '200':
+          description: Transporte encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transporte'
+        '404':
+          description: Transporte no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Transporte]
+      summary: Actualizar transporte
+      operationId: updateTransporte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransporteCreate'
+      responses:
+        '200':
+          description: Transporte actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transporte'
+        '404':
+          description: Transporte no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Transporte]
+      summary: Eliminar transporte
+      operationId: deleteTransporte
+      responses:
+        '204':
+          description: Transporte eliminado
+        '404':
+          description: Transporte no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 8. EMBARQUES (solo customer service)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /embarques:
+    get:
+      tags: [Embarques]
+      summary: Listar embarques
+      operationId: getEmbarques
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: cliente_id
+          in: query
+          schema: { type: integer }
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [expeditado, regular]
+        - name: fecha
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista de embarques
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Embarque'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+    post:
+      tags: [Embarques]
+      summary: Crear embarque
+      description: Solo permitido para empleados con rol de customer service.
+      operationId: createEmbarque
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbarqueCreate'
+      responses:
+        '201':
+          description: Embarque creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Embarque'
+        '403':
+          description: Sin permisos (no es customer service)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /embarques/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Embarques]
+      summary: Obtener embarque por ID
+      operationId: getEmbarqueById
+      responses:
+        '200':
+          description: Embarque encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Embarque'
+        '404':
+          description: Embarque no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Embarques]
+      summary: Actualizar embarque
+      operationId: updateEmbarque
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbarqueCreate'
+      responses:
+        '200':
+          description: Embarque actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Embarque'
+        '404':
+          description: Embarque no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Embarques]
+      summary: Eliminar embarque
+      operationId: deleteEmbarque
+      responses:
+        '204':
+          description: Embarque eliminado
+        '404':
+          description: Embarque no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ─── Pruebas de Entrega por Embarque ─────────────────────────────────────
+
+  /embarques/{id}/pruebas-entrega:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Pruebas de Entrega]
+      summary: Listar pruebas de entrega de un embarque
+      operationId: getPruebasByEmbarque
+      responses:
+        '200':
+          description: Pruebas de entrega del embarque
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PruebaEntrega'
+        '404':
+          description: Embarque no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Pruebas de Entrega]
+      summary: Subir prueba de entrega
+      operationId: createPruebaEntrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PruebaEntregaCreate'
+      responses:
+        '201':
+          description: Prueba de entrega registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PruebaEntrega'
+        '404':
+          description: Embarque no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /pruebas-entrega/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Pruebas de Entrega]
+      summary: Obtener prueba de entrega por ID
+      operationId: getPruebaEntregaById
+      responses:
+        '200':
+          description: Prueba de entrega encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PruebaEntrega'
+        '404':
+          description: No encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Pruebas de Entrega]
+      summary: Actualizar prueba de entrega
+      operationId: updatePruebaEntrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PruebaEntregaCreate'
+      responses:
+        '200':
+          description: Prueba actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PruebaEntrega'
+        '404':
+          description: No encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 9. VIAJES
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /viajes:
+    get:
+      tags: [Viajes]
+      summary: Listar viajes
+      operationId: getViajes
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: empleado_chofer_id
+          in: query
+          schema: { type: integer }
+        - name: transporte_id
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Lista de viajes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Viaje'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+    post:
+      tags: [Viajes]
+      summary: Crear viaje
+      description: Crea el viaje y asigna los embarques indicados (genera registros en viaje_embarque).
+      operationId: createViaje
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViajeCreate'
+      responses:
+        '201':
+          description: Viaje creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viaje'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /viajes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Viajes]
+      summary: Obtener viaje por ID
+      operationId: getViajeById
+      responses:
+        '200':
+          description: Viaje encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viaje'
+        '404':
+          description: Viaje no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Viajes]
+      summary: Actualizar viaje
+      operationId: updateViaje
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViajeCreate'
+      responses:
+        '200':
+          description: Viaje actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viaje'
+        '404':
+          description: Viaje no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Viajes]
+      summary: Eliminar viaje
+      operationId: deleteViaje
+      responses:
+        '204':
+          description: Viaje eliminado
+        '404':
+          description: Viaje no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 10. SEGUIMIENTO DE VIAJE (QR, entrada/salida)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /viajes/{id}/seguimiento:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Seguimiento de Viaje]
+      summary: Obtener seguimiento del viaje
+      operationId: getSeguimientoByViaje
+      responses:
+        '200':
+          description: Seguimiento del viaje
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeguimientoViaje'
+        '404':
+          description: Viaje no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /viajes/{id}/qr:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Seguimiento de Viaje]
+      summary: Generar QR del viaje (chofer)
+      description: El chofer genera el QR desde su app para mostrárselo al empleado de caseta.
+      operationId: generateQr
+      responses:
+        '201':
+          description: QR generado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrGenerateResponse'
+        '404':
+          description: Viaje no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /seguimiento/consumir-qr:
+    post:
+      tags: [Seguimiento de Viaje]
+      summary: Consumir QR (empleado de caseta)
+      description: |
+        El empleado de caseta escanea el QR del chofer desde su app.
+        Si `tipo` es "entrada" registra la entrada; si es "salida" registra la salida.
+      operationId: consumirQr
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QrConsumeRequest'
+      responses:
+        '200':
+          description: QR consumido, seguimiento actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeguimientoViaje'
+        '400':
+          description: QR inválido o ya consumido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Viaje no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 11. SOLICITUDES
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /solicitudes:
+    get:
+      tags: [Solicitudes]
+      summary: Listar solicitudes
+      operationId: getSolicitudes
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [solicitar QR, pruebas de entrega desfasadas, pruebas de entrega pendientes, estatus de salida]
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [aceptado, rechazado]
+        - name: empleado_receptor_id
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Lista de solicitudes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Solicitud'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+    post:
+      tags: [Solicitudes]
+      summary: Crear solicitud
+      operationId: createSolicitud
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudCreate'
+      responses:
+        '201':
+          description: Solicitud creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitud'
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /solicitudes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Solicitudes]
+      summary: Obtener solicitud por ID
+      operationId: getSolicitudById
+      responses:
+        '200':
+          description: Solicitud encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitud'
+        '404':
+          description: Solicitud no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /solicitudes/{id}/responder:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Solicitudes]
+      summary: Responder solicitud (aceptar o rechazar)
+      operationId: responderSolicitud
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SolicitudResponder'
+      responses:
+        '200':
+          description: Solicitud respondida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitud'
+        '404':
+          description: Solicitud no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 12. NOTIFICACIONES
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /notificaciones:
+    get:
+      tags: [Notificaciones]
+      summary: Listar notificaciones del usuario autenticado
+      operationId: getNotificaciones
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Lista de notificaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notificacion'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+
+  /notificaciones/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Notificaciones]
+      summary: Obtener notificación por ID
+      operationId: getNotificacionById
+      responses:
+        '200':
+          description: Notificación encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notificacion'
+        '404':
+          description: Notificación no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

@@ -1,0 +1,78 @@
+Endpoints faltantes 
+- Agregar paginacion a todos los GET
+- Diccionario de errores un error de tamaño es para coordinador stock y otro es para Customer Service
+- Enpoint para crear codigo QR 
+- Endpoint /me o /perfil
+- Hacer vista del endpoint /me /perfil para todos los roles  
+- Diccionario de errores agregar el error de "No se pudo generar el QR"
+- Poner tiempo de vida al codigo QR (1 hora)
+- Investigar como se le asigna el tiempo de vida, si dentro del mismo contenido o en otro campo
+
+
+CUSTOMER SERVICE FATIMA
+CRONOGRAMA
+- Cargar cronograma (excel): subir archivo, validar el excel que vengan las columnas esperadas (vienen la vista de embarques) y el tamaño y formato del archivo ( max 9 MB, formato csv o xls) 200 ok
+- Subir cronograma, con la inforamcion previamente cargada del excel y con el cliente asignado de forma manual al igual que el transporte. 
+
+HISTORIAL
+- Endpoint para filtrar
+/embarques/{cliente}/{fecha-inicio}/{fecha-fin}/{tipo}
+- Agregar campo estatus (enum) en la tabla Seguimiento Viaje
+- Revisar put clientes
+- Cambiar color del delete en la vista de Clientes (esrta azul, cambiar a naranja o rojo)
+- Hacer vista para ver los transportes
+
+
+
+
+EMBARQUES CAMILA Y ETNI
+- Filtrar embarques por dia (dia actual), este filtro estara por defecto cuando los de embarques entren 
+- Endpoints Viaje_Emarques para saber que embarques estan en un viaje 
+- Quitar boton agregar embarque al viaje en modal de Detalle del viaje 
+- El boton del modal detalle viaje moverlo a Crear viajes 
+- Viajes agregar boton de agregar embarque al viaje
+- En crear viajes quitar el dropdown de seleccionar el transporte y que traiga el transporte del embarque que previamente selecciono costumer service 
+- Agregar validacion de que solo se puedan agregar embarques con el mismo tranporte que el viaje
+- En pendientes cuando tenga permiso de subir mas pruebas las que ya subio previamente apareceran deshabilidtadas (o sea que no las podra modificar)
+- El endpoint de crear viaje no debe de pedir el transporte_id y agregar los campos de subir las pruebas de entrega
+- Agregar endpoints de Doc_Cliente
+- En el detalle del viaje poder subir mas pruebas de entrega 
+- Agregar modal de Codigo QR generado existosamente 
+
+
+ADUANAS RUBI 
+- Revisar como sera el acomodo/consumo de las carpetas de las pruebas de entrega
+- Hacer el endpoint con filtros 
+pruebas_entrega/{cliente}/{año}/{mes}/{fecha-inicio}/{fecha-fin}/{tipo-prueba-entrega}
+- Agregar en la vista el filtro de tipo de prueba de entrega 
+- En viajes cambiar nombre de eviencias a embarques y este "campo" sera un acordeon que desplegara los embarques como en la vista de viaje-embarques pero solo la tabla (ya no debera de incluir los filtros) y mover el "campo" a la derecha o sea que fecha estara a la izquierda de embarques 
+- Hacer endpoint de mandar recordatorio para que suba las pruebas de entrega
+
+COORDINADOR STOCK ETNI
+- Boton de subir cronograma
+- Endpoint de subir archivo de empleados (max 20 MB)
+- Endpoint cambiar contraseña 
+- Endpoint para desactivar cuenta (con el estado)
+- Endpoint filtrar transportes 
+/transportes/{estado}
+- Endpoint de editar transporte solo se puede editar las placas y la imagen
+- Endpoint filtrar solicitudes
+/solicitudes/{tipo}/{fecha}/{estado}
+- En la vista en lugar de aceptados o denegados poner estado aceptados, rechazados o ambos 
+
+
+
+
+GOBERNAZA ETNI
+- Endpoint solicitar recuperacion de contraseña
+- Endpoint recuperar contraseña 
+
+
+
+
+
+
+
+
+
+
