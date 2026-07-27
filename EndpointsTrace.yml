@@ -5,13 +5,13 @@ info:
     API para la gestión de embarques, viajes y pruebas de entrega.
   contact:
     email: camjarag12@gmail.com
-  version: 1.0.0
+  version: 1.2.0
 
 servers:
-  - url: https://api.trace.cool
+- url: https://api.trace.cool
 
 security:
-  - bearerAuth: []
+- bearerAuth: []
 
 components:
   securitySchemes:
@@ -128,10 +128,8 @@ components:
           example: "https://api.trace.cool/files/empleados/foto-001.jpg"
         departamento:
           type: string
-          minLength: 3
-          maxLength: 20
-          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
-          example: "Logística"
+          enum: [supplyChain, transportes, seguridad]
+          example: "supplyChain"
         puesto:
           type: string
           minLength: 3
@@ -178,9 +176,8 @@ components:
           nullable: true
         departamento:
           type: string
-          minLength: 3
-          maxLength: 20
-          example: "Logística"
+          enum: [supplyChain, transportes, seguridad]
+          example: "supplyChain"
         puesto:
           type: string
           minLength: 3
@@ -211,6 +208,10 @@ components:
           maxLength: 20
           pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s]{3,20}$'
           example: "jperez"
+        celular:
+          type: string
+          pattern: '^[0-9]{10}$'
+          example: "6141234567"
         estado:
           type: boolean
           description: true = activo, false = desactivado
@@ -222,7 +223,7 @@ components:
 
     UsuarioCreate:
       type: object
-      required: [rol_id, empleado_id, username, password]
+      required: [rol_id, empleado_id, username, password, celular]
       properties:
         rol_id:
           type: integer
@@ -240,6 +241,10 @@ components:
           type: string
           maxLength: 128
           example: "miPassword123"
+        celular:
+          type: string
+          pattern: '^[0-9]{10}$'
+          example: "6141234567"
 
     UsuarioUpdate:
       type: object
@@ -250,6 +255,9 @@ components:
           type: string
           minLength: 3
           maxLength: 20
+        celular:
+          type: string
+          pattern: '^[0-9]{10}$'
         estado:
           type: boolean
 
@@ -269,7 +277,7 @@ components:
           example: "Ford Motor Company"
         tipo:
           type: string
-          enum: [médico, automotriz, aeroespacial, eléctrico]
+          enum: [medico, automotriz, aeroespacial, electrico]
           example: "automotriz"
         ubicacion:
           type: string
@@ -283,10 +291,10 @@ components:
           items:
             $ref: '#/components/schemas/Documento'
           example:
-            - id: 1
-              nombre: "Carta de porte"
-            - id: 3
-              nombre: "Factura"
+          - id: 1
+            nombre: "Carta de porte"
+          - id: 3
+            nombre: "Factura"
 
     ClienteCreate:
       type: object
@@ -300,7 +308,7 @@ components:
           example: "Ford Motor Company"
         tipo:
           type: string
-          enum: [médico, automotriz, aeroespacial, eléctrico]
+          enum: [medico, automotriz, aeroespacial, electrico]
           example: "automotriz"
         ubicacion:
           type: string
@@ -350,6 +358,46 @@ components:
           nullable: true
           example: "Requerido para clientes automotrices en traslados interestatales"
 
+    ApiMessage:
+      type: object
+      required: [code, msg]
+      properties:
+        code:
+          type: string
+          example: "AUTH_01"
+        msg:
+          type: string
+          example: "Error de autenticación"
+
+    ApiResponse:
+      type: object
+      required: [data, msg]
+      properties:
+        data:
+          nullable: true
+          oneOf:
+          - type: object
+          - type: array
+          - type: string
+          - type: integer
+          - type: number
+          - type: boolean
+        msg:
+          $ref: '#/components/schemas/ApiMessage'
+
+    ApiPaginatedResponse:
+      type: object
+      required: [data, meta, msg]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+        meta:
+          $ref: '#/components/schemas/PaginatedMeta'
+        msg:
+          $ref: '#/components/schemas/ApiMessage'
+
     # ─── Doc Cliente (relación cliente ↔ documentos) ─────────────────────────
 
     DocCliente:
@@ -366,6 +414,17 @@ components:
           example: 3
         documento:
           $ref: '#/components/schemas/Documento'
+
+    DocClienteCreate:
+      type: object
+      required: [cliente_id, documento_id]
+      properties:
+        cliente_id:
+          type: integer
+          example: 1
+        documento_id:
+          type: integer
+          example: 3
 
 
     # ─── Transporte ──────────────────────────────────────────────────────────
@@ -389,6 +448,7 @@ components:
         carga_util:
           type: number
           format: float
+          maximum: 999999.99
           example: 22500.00
           description: Carga útil en kg
         imagen:
@@ -417,6 +477,7 @@ components:
         carga_util:
           type: number
           format: float
+          maximum: 999999.99
           example: 22500.00
         imagen:
           type: string
@@ -441,9 +502,14 @@ components:
           description: Empleado de customer service que creó el embarque
         empleado_customer:
           $ref: '#/components/schemas/Empleado'
+        transporte_id:
+          type: integer
+          example: 2
+        transporte:
+          $ref: '#/components/schemas/Transporte'
         plan_embarque:
           type: string
-          maxLength: 100
+          maxLength: 20
           example: "PE-2024-00892"
           description: ID del plan de embarque en el ERP
         fecha:
@@ -464,17 +530,24 @@ components:
         cantidad_piezas:
           type: integer
           example: 320
+        estado:
+          type: string
+          enum: [activo, inactivo]
+          example: "activo"
 
     EmbarqueCreate:
       type: object
-      required: [cliente_id, plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas]
+      required: [cliente_id, transporte_id, plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas]
       properties:
         cliente_id:
           type: integer
           example: 1
+        transporte_id:
+          type: integer
+          example: 2
         plan_embarque:
           type: string
-          maxLength: 100
+          maxLength: 20
           example: "PE-2024-00892"
         fecha:
           type: string
@@ -493,6 +566,35 @@ components:
         cantidad_piezas:
           type: integer
           example: 320
+
+    # ─── Importación CSV de Embarques ────────────────────────────────────────
+
+    EmbarqueImportRow:
+      type: object
+      description: Una fila del CSV interpretada como un embarque, con sus posibles errores de validación.
+      properties:
+        fila:
+          type: integer
+          description: Número de fila en el CSV (para referencia del usuario)
+          example: 2
+        datos:
+          $ref: '#/components/schemas/EmbarqueCreate'
+        errores:
+          type: array
+          description: Errores de validación encontrados en esta fila. Vacío si la fila es válida.
+          items:
+            type: string
+          example: []
+
+    EmbarqueImportConfirm:
+      type: object
+      required: [embarques]
+      properties:
+        embarques:
+          type: array
+          description: Filas ya revisadas/editadas por el usuario en pantalla, listas para insertarse en la tabla de embarques.
+          items:
+            $ref: '#/components/schemas/EmbarqueCreate'
 
     # ─── Pruebas de Entrega ──────────────────────────────────────────────────
 
@@ -551,6 +653,11 @@ components:
           example: 2
         transporte:
           $ref: '#/components/schemas/Transporte'
+        viaje_embarques:
+          type: array
+          items:
+            $ref: '#/components/schemas/ViajeEmbarque'
+          description: Relación viaje-embarque usada para consultar y administrar los embarques del viaje
         embarques:
           type: array
           items:
@@ -570,12 +677,49 @@ components:
         transporte_id:
           type: integer
           example: 2
+          description: Transporte asignado manualmente por el usuario al crear el viaje. Debe estar en estado "planta" (disponible).
         embarque_ids:
           type: array
           items:
             type: integer
           example: [1, 2, 5]
-          description: IDs de los embarques que irán en este viaje
+          description: IDs de los embarques que irán en este viaje.
+        pruebas_entrega:
+          type: array
+          description: |
+            Pruebas de entrega subidas al momento de crear el viaje.
+            Si faltan documentos por subir, el empleado deberá generar una
+            solicitud (tipo "pruebas de entrega pendientes" o "pruebas de
+            entrega desfasadas") para poder subirlas después.
+          items:
+            type: object
+            required: [embarque_id, doc_cliente_id, ruta_imagen]
+            properties:
+              embarque_id:
+                type: integer
+                example: 5
+              doc_cliente_id:
+                type: integer
+                example: 2
+              ruta_imagen:
+                type: string
+                maxLength: 255
+                example: "https://api.trace.cool/files/pruebas/prueba-001.jpg"
+
+    ViajeEmbarque:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        viaje_id:
+          type: integer
+          example: 1
+        embarque_id:
+          type: integer
+          example: 5
+        embarque:
+          $ref: '#/components/schemas/Embarque'
 
     # ─── Seguimiento de Viaje ─────────────────────────────────────────────────
 
@@ -741,42 +885,163 @@ components:
 
     Error:
       type: object
-      required: [code, message]
+      required: [data, msg]
       properties:
-        code:
-          type: string
-          example: "VALIDATION_ERROR"
-        message:
-          type: string
-          example: "El campo username es requerido"
+        data:
+          nullable: true
+          example: null
+        msg:
+          $ref: '#/components/schemas/ApiMessage'
 
+  responses:
+    Unauthorized:
+      description: Sesión no válida o expirada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            AUTH_001:
+              summary: Token de sesión expirado
+              value:
+                data: null
+                msg:
+                  code: AUTH_001
+                  msg: "Sesión expirada, vuelva a iniciar sesión"
+            AUTH_002:
+              summary: Token de sesión inválido o malformado
+              value:
+                data: null
+                msg:
+                  code: AUTH_002
+                  msg: "Sesión invalida, vuelva a iniciar sesión"
+
+    Forbidden:
+      description: El usuario no tiene permisos para realizar esta acción
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            ROL_001:
+              summary: Sin permisos para el módulo
+              value:
+                data: null
+                msg:
+                  code: ROL_001
+                  msg: "No tienes permisos para este módulo"
+
+    ServerError:
+      description: Error interno del servidor o al guardar en base de datos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            SERVER_001:
+              summary: Error interno del servidor
+              value:
+                data: null
+                msg:
+                  code: SERVER_001
+                  msg: "Algo salió mal, intenta de nuevo más tarde"
+            SERVER_002:
+              summary: Error al guardar en base de datos
+              value:
+                data: null
+                msg:
+                  code: SERVER_002
+                  msg: "No se pudo guardar la información, intenta de nuevo"
+
+    RequestTimeout:
+      description: El servidor no respondió a tiempo
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            data: null
+            msg:
+              code: SERVER_003
+              msg: "La solicitud tardó demasiado, intenta de nuevo"
+
+    ValidationErrorGeneric:
+      description: Error de validación de los datos enviados
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            VAL_004:
+              summary: Campo requerido faltante
+              value:
+                data: null
+                msg:
+                  code: VAL_004
+                  msg: "El campo {nombre del campo} es obligatorio"
+            VAL_007:
+              summary: Formato de campo inválido
+              value:
+                data: null
+                msg:
+                  code: VAL_007
+                  msg: "El campo no cumple con el formato requerido"
+
+    FileError:
+      description: Error relacionado con el archivo/imagen enviado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            FILE_001:
+              summary: Tipo de archivo inválido
+              value:
+                data: null
+                msg:
+                  code: FILE_001
+                  msg: "El formato del archivo no es el correcto"
+            FILE_002:
+              summary: Archivo excede el tamaño permitido
+              value:
+                data: null
+                msg:
+                  code: FILE_002
+                  msg: "El archivo no debe pesar mas de 30 MB"
+            FILE_003:
+              summary: Contenido del archivo no cumple la estructura requerida
+              value:
+                data: null
+                msg:
+                  code: FILE_003
+                  msg: "El contenido del archivo no cumple la estructura requerida"
 tags:
-  - name: Autenticación
-    description: Login con OTP propio
-  - name: Roles
-    description: Catálogo de roles del sistema
-  - name: Empleados
-    description: Gestión de empleados de la planta
-  - name: Usuarios
-    description: Cuentas de acceso al sistema (ligadas a empleados)
-  - name: Clientes
-    description: Clientes activos de la empresa
-  - name: Documentos
-    description: Catálogo de documentos requeridos para embarques
-  - name: Transporte
-    description: Unidades de transporte disponibles
-  - name: Embarques
-    description: Planeación de embarques (solo customer service)
-  - name: Pruebas de Entrega
-    description: Evidencias fotográficas por embarque y documento
-  - name: Viajes
-    description: Viajes que agrupan embarques con chofer y transporte
-  - name: Seguimiento de Viaje
-    description: Entradas, salidas y QR de los viajes
-  - name: Solicitudes
-    description: Solicitudes internas entre empleados
-  - name: Notificaciones
-    description: Notificaciones generadas por solicitudes
+- name: Autenticación
+  description: Login con OTP propio
+- name: Roles
+  description: Catálogo de roles del sistema
+- name: Empleados
+  description: Gestión de empleados de la planta
+- name: Usuarios
+  description: Cuentas de acceso al sistema (ligadas a empleados)
+- name: Clientes
+  description: Clientes activos de la empresa
+- name: Documentos
+  description: Catálogo de documentos requeridos para embarques
+- name: Transporte
+  description: Unidades de transporte disponibles
+- name: Embarques
+  description: Planeación de embarques (solo customer service)
+- name: Pruebas de Entrega
+  description: Evidencias fotográficas por embarque y documento
+- name: Viajes
+  description: Viajes que agrupan embarques con chofer y transporte
+- name: Seguimiento de Viaje
+  description: Entradas, salidas y QR de los viajes
+- name: Solicitudes
+  description: Solicitudes internas entre empleados
+- name: Notificaciones
+  description: Notificaciones generadas por solicitudes
 
 paths:
 
@@ -812,13 +1077,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: AUTH_003
+                  msg: "Username o password incorrectos"
         '422':
           description: Error de validación
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              examples:
+                VAL_001:
+                  summary: Username no cumple longitud mínima
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_001
+                      msg: "El username debe contener minimo 8 caracteres"
+                VAL_002:
+                  summary: Password no cumple longitud mínima
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_002
+                      msg: "La contraseña debe ser de mínimo 12 caracteres"
+                VAL_004:
+                  summary: Campo requerido faltante
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /auth/verify-otp:
     post:
       tags: [Autenticación]
@@ -845,32 +1140,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                OTP_001:
+                  summary: Código OTP incorrecto
+                  value:
+                    data: null
+                    msg:
+                      code: OTP_001
+                      msg: "El código de verificación es incorrecto"
+                OTP_002:
+                  summary: Código OTP expirado
+                  value:
+                    data: null
+                    msg:
+                      code: OTP_002
+                      msg: "El código de verificación esta expirado"
         '422':
           description: Error de validación
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 2. ROLES
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_004
+                  msg: "El campo {nombre del campo} es obligatorio"
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /roles:
     get:
       tags: [Roles]
       summary: Listar roles
       operationId: getRoles
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
       responses:
         '200':
           description: Lista de roles
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Rol'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Rol'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Roles]
       summary: Crear rol
@@ -897,19 +1229,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Rol'
         '409':
-          description: El nombre del rol ya existe
+          description: "El nombre del rol ya existe"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "Rol ya existente, debe ser único"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /roles/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
     get:
       tags: [Roles]
       summary: Obtener rol por ID
@@ -922,11 +1268,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Rol'
         '404':
-          description: Rol no encontrado
+          description: "Rol no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Rol no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Roles]
       summary: Actualizar rol
@@ -951,11 +1308,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Rol'
         '404':
-          description: Rol no encontrado
+          description: "Rol no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Rol no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Roles]
       summary: Eliminar rol
@@ -964,36 +1336,46 @@ paths:
         '204':
           description: Rol eliminado
         '404':
-          description: Rol no encontrado
+          description: "Rol no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 3. EMPLEADOS
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Rol no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /empleados:
     get:
       tags: [Empleados]
       summary: Listar empleados
       operationId: getEmpleados
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
-        - name: departamento
-          in: query
-          schema: { type: string }
-        - name: estado
-          in: query
-          schema:
-            type: string
-            enum: [disponible, ocupado]
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: departamento
+        in: query
+        schema:
+          type: string
+          enum: [supplyChain, transportes, seguridad]
+      - name: estado
+        in: query
+        schema:
+          type: string
+          enum: [disponible, ocupado]
       responses:
         '200':
           description: Lista de empleados
@@ -1009,6 +1391,12 @@ paths:
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Empleados]
       summary: Crear empleado
@@ -1027,11 +1415,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Empleado'
         '409':
-          description: no_empleado ya registrado
+          description: "no_empleado ya registrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "no_empleado ya existente, debe ser único"
         '422':
           description: Error de validación
           content:
@@ -1039,12 +1432,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+              examples:
+                VAL_004:
+                  summary: "Campo requerido faltante"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_007:
+                  summary: "Formato de campo inválido"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_007
+                      msg: "El campo no cumple con el formato requerido"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /empleados/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Empleados]
       summary: Obtener empleado por ID
@@ -1057,11 +1475,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Empleado'
         '404':
-          description: Empleado no encontrado
+          description: "Empleado no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Empleado no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Empleados]
       summary: Actualizar empleado
@@ -1080,11 +1509,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/Empleado'
         '404':
-          description: Empleado no encontrado
+          description: "Empleado no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Empleado no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Empleados]
       summary: Eliminar empleado
@@ -1093,34 +1539,42 @@ paths:
         '204':
           description: Empleado eliminado
         '404':
-          description: Empleado no encontrado
+          description: "Empleado no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 4. USUARIOS
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Empleado no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /usuarios:
     get:
       tags: [Usuarios]
       summary: Listar usuarios
       operationId: getUsuarios
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
-        - name: rol_id
-          in: query
-          schema: { type: integer }
-        - name: estado
-          in: query
-          schema: { type: boolean }
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: rol_id
+        in: query
+        schema: {type: integer}
+      - name: estado
+        in: query
+        schema: {type: boolean}
       responses:
         '200':
           description: Lista de usuarios
@@ -1136,6 +1590,12 @@ paths:
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Usuarios]
       summary: Crear usuario
@@ -1154,11 +1614,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Usuario'
         '409':
-          description: Username ya en uso
+          description: "Username ya en uso"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "username ya existente, debe ser único"
         '422':
           description: Error de validación
           content:
@@ -1166,12 +1631,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+              examples:
+                VAL_004:
+                  summary: "Campo requerido faltante"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_007:
+                  summary: "Formato de campo inválido"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_007
+                      msg: "El campo no cumple con el formato requerido"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /usuarios/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Usuarios]
       summary: Obtener usuario por ID
@@ -1184,11 +1672,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Usuario'
         '404':
-          description: Usuario no encontrado
+          description: "Usuario no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Usuario no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Usuarios]
       summary: Actualizar usuario
@@ -1207,11 +1706,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Usuario'
         '404':
-          description: Usuario no encontrado
+          description: "Usuario no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Usuario no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Usuarios]
       summary: Eliminar usuario
@@ -1220,18 +1734,30 @@ paths:
         '204':
           description: Usuario eliminado
         '404':
-          description: Usuario no encontrado
+          description: "Usuario no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Usuario no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /usuarios/{id}/password:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     patch:
       tags: [Usuarios]
       summary: Cambiar contraseña
@@ -1253,37 +1779,117 @@ paths:
         '200':
           description: Contraseña actualizada
         '401':
-          description: Contraseña actual incorrecta
+          description: Sesión no válida, expirada, o contraseña actual incorrecta
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 5. CLIENTES
-  # ════════════════════════════════════════════════════════════════════════════
-
+              examples:
+                AUTH_001:
+                  summary: Token de sesión expirado
+                  value:
+                    data: null
+                    msg:
+                      code: AUTH_001
+                      msg: "Sesión expirada, vuelva a iniciar sesión"
+                AUTH_002:
+                  summary: Token de sesión inválido o malformado
+                  value:
+                    data: null
+                    msg:
+                      code: AUTH_002
+                      msg: "Sesión invalida, vuelva a iniciar sesión"
+                AUTH_003:
+                  summary: Contraseña actual incorrecta
+                  value:
+                    data: null
+                    msg:
+                      code: AUTH_003
+                      msg: "Username o password incorrectos"
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Error de validación de la nueva contraseña
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                VAL_002:
+                  summary: Password no cumple longitud mínima
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_002
+                      msg: "La contraseña debe ser de mínimo 12 caracteres"
+                VAL_003:
+                  summary: Password sin mayúscula ni carácter especial
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_003
+                      msg: "La contraseña debe contener al menos una mayúscula o signo especial"
+                VAL_004:
+                  summary: Campo requerido faltante
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_008:
+                  summary: Nueva contraseña igual a la actual
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_008
+                      msg: "La contraseña nueva no puede ser igual a la actual"
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /me:
+    get:
+      tags: [Usuarios]
+      summary: Obtener el perfil del usuario autenticado
+      description: |
+        Regresa la información del usuario dueño del token JWT enviado en el
+        header Authorization. Disponible para cualquier rol, sin requerir
+        permisos especiales, ya que cada usuario solo consulta su propio perfil.
+      operationId: getMe
+      responses:
+        '200':
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /clientes:
     get:
       tags: [Clientes]
       summary: Listar clientes
       operationId: getClientes
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
-        - name: tipo
-          in: query
-          schema:
-            type: string
-            enum: [médico, automotriz, aeroespacial, eléctrico]
-        - name: search
-          in: query
-          description: Buscar por nombre
-          schema: { type: string }
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: tipo
+        in: query
+        schema:
+          type: string
+          enum: [medico, automotriz, aeroespacial, electrico]
+      - name: search
+        in: query
+        description: Buscar por nombre
+        schema: {type: string}
       responses:
         '200':
           description: Lista de clientes
@@ -1299,6 +1905,12 @@ paths:
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Clientes]
       summary: Crear cliente
@@ -1317,11 +1929,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cliente'
         '409':
-          description: Nombre de cliente ya registrado
+          description: "Nombre de cliente ya registrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "Cliente ya existente, debe ser único"
         '422':
           description: Error de validación
           content:
@@ -1329,12 +1946,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+              examples:
+                VAL_004:
+                  summary: "Campo requerido faltante"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_007:
+                  summary: "Formato de campo inválido"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_007
+                      msg: "El campo no cumple con el formato requerido"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /clientes/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Clientes]
       summary: Obtener cliente por ID
@@ -1347,11 +1987,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cliente'
         '404':
-          description: Cliente no encontrado
+          description: "Cliente no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Clientes]
       summary: Actualizar cliente
@@ -1370,11 +2021,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cliente'
         '404':
-          description: Cliente no encontrado
+          description: "Cliente no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Clientes]
       summary: Eliminar cliente
@@ -1383,31 +2049,57 @@ paths:
         '204':
           description: Cliente eliminado
         '404':
-          description: Cliente no encontrado
+          description: "Cliente no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 6. DOCUMENTOS
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /documentos:
     get:
       tags: [Documentos]
       summary: Listar documentos
       operationId: getDocumentos
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
       responses:
         '200':
           description: Lista de documentos
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Documento'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Documento'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Documentos]
       summary: Crear documento
@@ -1426,18 +2118,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/Documento'
         '409':
-          description: Nombre ya existe
+          description: "Nombre ya existe"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "Documento ya existente, debe ser único"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /documentos/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Documentos]
       summary: Obtener documento por ID
@@ -1450,11 +2156,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Documento'
         '404':
-          description: Documento no encontrado
+          description: "Documento no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Documento no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Documentos]
       summary: Actualizar documento
@@ -1473,11 +2190,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Documento'
         '404':
-          description: Documento no encontrado
+          description: "Documento no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Documento no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Documentos]
       summary: Eliminar documento
@@ -1486,36 +2218,217 @@ paths:
         '204':
           description: Documento eliminado
         '404':
-          description: Documento no encontrado
+          description: "Documento no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Documento no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /doc-clientes:
+    get:
+      tags: [Documentos]
+      summary: Listar documentos asignados a clientes
+      operationId: getDocClientes
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: cliente_id
+        in: query
+        schema: {type: integer}
+      - name: documento_id
+        in: query
+        schema: {type: integer}
+      responses:
+        '200':
+          description: Lista de documentos cliente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocCliente'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
 
-  # 7. TRANSPORTE
-  # ════════════════════════════════════════════════════════════════════════════
-
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+    post:
+      tags: [Documentos]
+      summary: Asignar documento requerido a un cliente
+      operationId: createDocCliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocClienteCreate'
+      responses:
+        '201':
+          description: Documento asignado al cliente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocCliente'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '409':
+          description: "La relación ya existe"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "doc_cliente ya existente, debe ser único"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /doc-clientes/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    get:
+      tags: [Documentos]
+      summary: Obtener doc_cliente por ID
+      operationId: getDocClienteById
+      responses:
+        '200':
+          description: doc_cliente encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocCliente'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '404':
+          description: "doc_cliente no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "doc_cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+    delete:
+      tags: [Documentos]
+      summary: Eliminar doc_cliente
+      operationId: deleteDocCliente
+      responses:
+        '204':
+          description: Relación eliminada
+        '404':
+          description: "doc_cliente no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "doc_cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /transporte:
     get:
       tags: [Transporte]
       summary: Listar unidades de transporte
       operationId: getTransportes
       parameters:
-        - name: estado
-          in: query
-          schema:
-            type: string
-            enum: [viaje, planta]
+      - name: estado
+        in: query
+        schema:
+          type: string
+          enum: [viaje, planta]
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
       responses:
         '200':
           description: Lista de transportes
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Transporte'
+                type: object
+                required: [data, meta, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transporte'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Transporte]
       summary: Registrar unidad de transporte
@@ -1532,20 +2445,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transporte'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Transporte'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '409':
-          description: Placas ya registradas
+          description: "Placas ya registradas"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "placas ya existente, debe ser único"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /transporte/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Transporte]
       summary: Obtener transporte por ID
@@ -1556,13 +2491,30 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transporte'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Transporte'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Transporte no encontrado
+          description: "Transporte no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Transporte no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Transporte]
       summary: Actualizar transporte
@@ -1579,13 +2531,36 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transporte'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Transporte'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Transporte no encontrado
+          description: "Transporte no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Transporte no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Transporte]
       summary: Eliminar transporte
@@ -1594,41 +2569,55 @@ paths:
         '204':
           description: Transporte eliminado
         '404':
-          description: Transporte no encontrado
+          description: "Transporte no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 8. EMBARQUES (solo customer service)
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Transporte no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /embarques:
     get:
       tags: [Embarques]
       summary: Listar embarques
       operationId: getEmbarques
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
-        - name: cliente_id
-          in: query
-          schema: { type: integer }
-        - name: tipo
-          in: query
-          schema:
-            type: string
-            enum: [expeditado, regular]
-        - name: fecha
-          in: query
-          schema:
-            type: string
-            format: date
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: cliente_id
+        in: query
+        schema: {type: integer}
+      - name: tipo
+        in: query
+        schema:
+          type: string
+          enum: [expeditado, regular]
+      - name: estado
+        in: query
+        schema:
+          type: string
+          enum: [activo, inactivo]
+      - name: fecha
+        in: query
+        schema:
+          type: string
+          format: date
+        description: Si no se envía, el backend debe usar el día actual como filtro por defecto.
       responses:
         '200':
           description: Lista de embarques
@@ -1636,6 +2625,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [data, meta, msg]
                 properties:
                   data:
                     type: array
@@ -1643,7 +2633,15 @@ paths:
                       $ref: '#/components/schemas/Embarque'
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Embarques]
       summary: Crear embarque
@@ -1661,13 +2659,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Embarque'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Embarque'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '403':
-          description: Sin permisos (no es customer service)
+          description: Sin permisos para realizar esta acción
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: ROL_001
+                  msg: "No tienes permisos para este módulo"
         '422':
           description: Error de validación
           content:
@@ -1675,12 +2684,122 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+              examples:
+                VAL_004:
+                  summary: "Campo requerido faltante"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_007:
+                  summary: "Formato de campo inválido"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_007
+                      msg: "El campo no cumple con el formato requerido"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /embarques/import/preview:
+    post:
+      tags: [Embarques]
+      summary: Leer y validar un CSV de embarques (vista previa)
+      description: |
+        Solo permitido para empleados con rol de customer service.
+        Recibe un archivo CSV con múltiples embarques (una fila por
+        embarque), lo valida (tipo de archivo y estructura de columnas) y
+        regresa las filas ya interpretadas para mostrarlas en pantalla.
+        Esta operación NO guarda nada en la base de datos todavía; el
+        usuario debe confirmar con `POST /embarques/import/confirmar`.
+      operationId: previewImportEmbarques
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Archivo .csv con los embarques a importar
+      responses:
+        '200':
+          description: Filas del CSV interpretadas, con errores de validación por fila si los hay
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmbarqueImportRow'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /embarques/import/confirmar:
+    post:
+      tags: [Embarques]
+      summary: Confirmar e insertar los embarques revisados en pantalla
+      description: |
+        Solo permitido para empleados con rol de customer service.
+        Recibe las filas ya revisadas (y editadas si aplicó) por el usuario
+        después de la vista previa, y las inserta en la tabla de embarques.
+      operationId: confirmImportEmbarques
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbarqueImportConfirm'
+      responses:
+        '201':
+          description: Embarques importados exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Embarque'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /embarques/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Embarques]
       summary: Obtener embarque por ID
@@ -1691,13 +2810,30 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Embarque'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Embarque'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Embarque no encontrado
+          description: "Embarque no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Embarques]
       summary: Actualizar embarque
@@ -1714,55 +2850,111 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Embarque'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Embarque'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Embarque no encontrado
+          description: "Embarque no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Embarques]
-      summary: Eliminar embarque
+      summary: Eliminar embarque (soft-delete, cambia estado a inactivo)
       operationId: deleteEmbarque
       responses:
         '204':
           description: Embarque eliminado
         '404':
-          description: Embarque no encontrado
+          description: "Embarque no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ─── Pruebas de Entrega por Embarque ─────────────────────────────────────
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /embarques/{id}/pruebas-entrega:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Pruebas de Entrega]
       summary: Listar pruebas de entrega de un embarque
       operationId: getPruebasByEmbarque
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
       responses:
         '200':
           description: Pruebas de entrega del embarque
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PruebaEntrega'
+                type: object
+                required: [data, meta, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PruebaEntrega'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Embarque no encontrado
+          description: "Embarque no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Pruebas de Entrega]
       summary: Subir prueba de entrega
@@ -1779,20 +2971,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PruebaEntrega'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PruebaEntrega'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Embarque no encontrado
+          description: "Embarque no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /pruebas-entrega/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Pruebas de Entrega]
       summary: Obtener prueba de entrega por ID
@@ -1803,13 +3017,292 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PruebaEntrega'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PruebaEntrega'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: No encontrada
+          description: "No encontrada"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Prueba de entrega no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /viajes/{id}/embarques:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    get:
+      tags: [Viajes]
+      summary: Listar embarques de un viaje
+      operationId: getEmbarquesByViaje
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      responses:
+        '200':
+          description: Embarques asociados al viaje
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Embarque'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '404':
+          description: "Viaje no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+    post:
+      tags: [Viajes]
+      summary: Agregar embarque a un viaje
+      operationId: addEmbarqueToViaje
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [embarque_id]
+              properties:
+                embarque_id:
+                  type: integer
+                  example: 5
+      responses:
+        '201':
+          description: Embarque agregado al viaje
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ViajeEmbarque'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '409':
+          description: "El embarque ya fue asignado a este viaje"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_006
+                  msg: "embarque ya existente, debe ser único"
+        '404':
+          description: "Viaje no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /viajes/{id}/embarques/{embarque_id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    - name: embarque_id
+      in: path
+      required: true
+      schema: {type: integer}
+    delete:
+      tags: [Viajes]
+      summary: Quitar embarque de un viaje
+      operationId: removeEmbarqueFromViaje
+      responses:
+        '204':
+          description: Embarque removido del viaje
+        '404':
+          description: "Viaje o embarque no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje o embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /viajes/{id}/embarques/{embarque_id}/pruebas-entrega:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    - name: embarque_id
+      in: path
+      required: true
+      schema: {type: integer}
+    get:
+      tags: [Pruebas de Entrega]
+      summary: Listar pruebas de entrega de un embarque dentro de un viaje
+      operationId: getPruebasByViajeEmbarque
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      responses:
+        '200':
+          description: Pruebas de entrega del embarque dentro del viaje
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PruebaEntrega'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '404':
+          description: "Viaje o embarque no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje o embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+    post:
+      tags: [Pruebas de Entrega]
+      summary: Subir prueba de entrega pendiente/desfasada desde el detalle del viaje
+      description: |
+        Permite subir una prueba de entrega faltante después de que el viaje
+        ya fue creado. Requiere que exista una Solicitud aceptada de tipo
+        "pruebas de entrega pendientes" o "pruebas de entrega desfasadas"
+        para este viaje_embarque.
+      operationId: createPruebaEntregaByViajeEmbarque
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PruebaEntregaCreate'
+      responses:
+        '201':
+          description: Prueba de entrega registrada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PruebaEntrega'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '403':
+          description: No tiene una solicitud aceptada para subir pruebas de entrega faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: SOL_001
+                  msg: "Necesitas una solicitud aceptada para subir pruebas pendientes"
+        '404':
+          description: "Viaje o embarque no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje o embarque no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Pruebas de Entrega]
       summary: Actualizar prueba de entrega
@@ -1826,36 +3319,54 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PruebaEntrega'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PruebaEntrega'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: No encontrada
+          description: "No encontrada"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 9. VIAJES
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Prueba de entrega no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /viajes:
     get:
       tags: [Viajes]
       summary: Listar viajes
       operationId: getViajes
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
-        - name: empleado_chofer_id
-          in: query
-          schema: { type: integer }
-        - name: transporte_id
-          in: query
-          schema: { type: integer }
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: empleado_chofer_id
+        in: query
+        schema: {type: integer}
+      - name: transporte_id
+        in: query
+        schema: {type: integer}
       responses:
         '200':
           description: Lista de viajes
@@ -1863,6 +3374,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [data, meta, msg]
                 properties:
                   data:
                     type: array
@@ -1870,11 +3382,24 @@ paths:
                       $ref: '#/components/schemas/Viaje'
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Viajes]
       summary: Crear viaje
-      description: Crea el viaje y asigna los embarques indicados (genera registros en viaje_embarque).
+      description: |
+        Crea el viaje con el transporte y chofer indicados por el usuario,
+        validando que el transporte esté disponible (estado "planta"), y
+        asigna los embarques indicados (genera registros en viaje_embarque).
+        Opcionalmente permite subir las pruebas de entrega correspondientes
+        en el mismo momento de creación.
       operationId: createViaje
       requestBody:
         required: true
@@ -1888,7 +3413,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Viaje'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Viaje'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '409':
+          description: "El transporte seleccionado ya está en uso en otro viaje activo"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: TRANS_001
+                  msg: "El transporte seleccionado ya está en uso, elige otro"
         '422':
           description: Error de validación
           content:
@@ -1896,12 +3438,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+              examples:
+                VAL_004:
+                  summary: "Campo requerido faltante"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_007:
+                  summary: "Formato de campo inválido"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_007
+                      msg: "El campo no cumple con el formato requerido"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '415':
+          $ref: '#/components/responses/FileError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /viajes/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Viajes]
       summary: Obtener viaje por ID
@@ -1912,13 +3479,30 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Viaje'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Viaje'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Viaje no encontrado
+          description: "Viaje no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     put:
       tags: [Viajes]
       summary: Actualizar viaje
@@ -1935,13 +3519,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Viaje'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Viaje'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Viaje no encontrado
+          description: "Viaje no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '409':
+          description: "El transporte seleccionado ya está en uso en otro viaje activo"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: TRANS_001
+                  msg: "El transporte seleccionado ya está en uso, elige otro"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     delete:
       tags: [Viajes]
       summary: Eliminar viaje
@@ -1950,22 +3566,30 @@ paths:
         '204':
           description: Viaje eliminado
         '404':
-          description: Viaje no encontrado
+          description: "Viaje no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 10. SEGUIMIENTO DE VIAJE (QR, entrada/salida)
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /viajes/{id}/seguimiento:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Seguimiento de Viaje]
       summary: Obtener seguimiento del viaje
@@ -1976,20 +3600,36 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SeguimientoViaje'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SeguimientoViaje'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Viaje no encontrado
+          description: "Viaje no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /viajes/{id}/qr:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     post:
       tags: [Seguimiento de Viaje]
       summary: Generar QR del viaje (chofer)
@@ -2001,14 +3641,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QrGenerateResponse'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QrGenerateResponse'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '404':
-          description: Viaje no encontrado
+          description: "Viaje no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /seguimiento/consumir-qr:
     post:
       tags: [Seguimiento de Viaje]
@@ -2029,49 +3689,87 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SeguimientoViaje'
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SeguimientoViaje'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
         '400':
-          description: QR inválido o ya consumido
+          description: QR inválido, no corresponde a ningún viaje, o ya expiró
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                QR_001:
+                  summary: Formato de QR inválido
+                  value:
+                    data: null
+                    msg:
+                      code: QR_001
+                      msg: "El QR no contiene el formato adecuado"
+                QR_002:
+                  summary: QR no corresponde a ningún viaje
+                  value:
+                    data: null
+                    msg:
+                      code: QR_002
+                      msg: "El QR no corresponde a ningún viaje registrado"
+                QR_003:
+                  summary: QR expirado
+                  value:
+                    data: null
+                    msg:
+                      code: QR_003
+                      msg: "El QR ha superado su tiempo de validez"
         '404':
-          description: Viaje no encontrado
+          description: "Viaje no encontrado"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 11. SOLICITUDES
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Viaje no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /solicitudes:
     get:
       tags: [Solicitudes]
       summary: Listar solicitudes
       operationId: getSolicitudes
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
-        - name: tipo
-          in: query
-          schema:
-            type: string
-            enum: [solicitar QR, pruebas de entrega desfasadas, pruebas de entrega pendientes, estatus de salida]
-        - name: estado
-          in: query
-          schema:
-            type: string
-            enum: [aceptado, rechazado]
-        - name: empleado_receptor_id
-          in: query
-          schema: { type: integer }
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: tipo
+        in: query
+        schema:
+          type: string
+          enum: [solicitar QR, pruebas de entrega desfasadas, pruebas de entrega pendientes, estatus de salida]
+      - name: estado
+        in: query
+        schema:
+          type: string
+          enum: [aceptado, rechazado]
+      - name: empleado_receptor_id
+        in: query
+        schema: {type: integer}
       responses:
         '200':
           description: Lista de solicitudes
@@ -2087,6 +3785,12 @@ paths:
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
     post:
       tags: [Solicitudes]
       summary: Crear solicitud
@@ -2111,12 +3815,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+              examples:
+                VAL_004:
+                  summary: "Campo requerido faltante"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo {nombre del campo} es obligatorio"
+                VAL_007:
+                  summary: "Formato de campo inválido"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_007
+                      msg: "El campo no cumple con el formato requerido"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /solicitudes/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Solicitudes]
       summary: Obtener solicitud por ID
@@ -2129,18 +3856,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/Solicitud'
         '404':
-          description: Solicitud no encontrada
+          description: "Solicitud no encontrada"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Solicitud no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /solicitudes/{id}/responder:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     patch:
       tags: [Solicitudes]
       summary: Responder solicitud (aceptar o rechazar)
@@ -2159,28 +3896,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Solicitud'
         '404':
-          description: Solicitud no encontrada
+          description: "Solicitud no encontrada"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-
-  # ════════════════════════════════════════════════════════════════════════════
-  # 12. NOTIFICACIONES
-  # ════════════════════════════════════════════════════════════════════════════
-
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Solicitud no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /notificaciones:
     get:
       tags: [Notificaciones]
       summary: Listar notificaciones del usuario autenticado
       operationId: getNotificaciones
       parameters:
-        - name: page
-          in: query
-          schema: { type: integer, default: 1 }
-        - name: per_page
-          in: query
-          schema: { type: integer, default: 20 }
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
       responses:
         '200':
           description: Lista de notificaciones
@@ -2196,12 +3941,18 @@ paths:
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
 
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /notificaciones/{id}:
     parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: integer }
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
     get:
       tags: [Notificaciones]
       summary: Obtener notificación por ID
@@ -2214,8 +3965,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Notificacion'
         '404':
-          description: Notificación no encontrada
+          description: "Notificación no encontrada"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Notificación no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
