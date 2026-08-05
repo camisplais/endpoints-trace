@@ -882,7 +882,87 @@ components:
         last_page:
           type: integer
           example: 5
+   # ─── Cronograma ─────────────────────────────────────────────────────────
 
+    CronogramaFilaPreview:
+      type: object
+      description: Una fila del archivo interpretada, con sus posibles errores. cliente_id viaja en null porque se asigna manualmente en pantalla.
+      properties:
+        fila:
+          type: integer
+          description: Número de fila en el archivo (para referencia del usuario)
+          example: 2
+        plan_embarque:
+          type: string
+          maxLength: 20
+          example: "EM-001"
+        fecha:
+          type: string
+          format: date
+          example: "2026-06-25"
+        hora:
+          type: string
+          example: "09:30:00"
+        tipo:
+          type: string
+          enum: [expeditado, regular]
+          example: "regular"
+        tarima:
+          type: integer
+          example: 4
+        cantidad_piezas:
+          type: integer
+          example: 120
+        errores:
+          type: array
+          description: Errores de validación encontrados en esta fila. Vacío si la fila es válida.
+          items:
+            type: string
+          example: []
+
+    CronogramaFilaConfirmar:
+      type: object
+      description: |
+        Fila ya revisada y con cliente_id asignado manualmente por el usuario
+        en la tabla (columna "Cliente"). empleado_customer_id NO se envía:
+        el backend lo toma del token del usuario autenticado.
+      required: [cliente_id, plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas]
+      properties:
+        cliente_id:
+          type: integer
+          description: Asignado manualmente por el usuario en la tabla antes de Guardar
+          example: 3
+        plan_embarque:
+          type: string
+          maxLength: 20
+          example: "EM-001"
+        fecha:
+          type: string
+          format: date
+          example: "2026-06-25"
+        hora:
+          type: string
+          example: "09:30:00"
+        tipo:
+          type: string
+          enum: [expeditado, regular]
+          example: "regular"
+        tarima:
+          type: integer
+          example: 4
+        cantidad_piezas:
+          type: integer
+          example: 120
+
+    CronogramaConfirmarRequest:
+      type: object
+      required: [filas]
+      properties:
+        filas:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CronogramaFilaConfirmar'
     Error:
       type: object
       required: [data, msg]
@@ -1015,6 +1095,37 @@ components:
                 msg:
                   code: FILE_003
                   msg: "El contenido del archivo no cumple la estructura requerida"
+
+   # Igual que FileError pero con el límite de 9MB específico de cronograma.
+    CronogramaFileError:
+      description: Error relacionado con el archivo de cronograma
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            FILE_001:
+              summary: Tipo de archivo inválido (solo csv o xls)
+              value:
+                data: null
+                msg:
+                  code: FILE_001
+                  msg: "El formato del archivo no es el correcto"
+            FILE_004:
+              summary: Archivo excede el límite de 9 MB
+              value:
+                data: null
+                msg:
+                  code: FILE_004
+                  msg: "El archivo no debe pesar más de 9 MB"
+            FILE_003:
+              summary: Columnas del archivo no coinciden con las esperadas
+              value:
+                data: null
+                msg:
+                  code: FILE_003
+                  msg: "El contenido del archivo no cumple la estructura requerida"
+
 tags:
 - name: Autenticación
   description: Login con OTP propio
@@ -2705,18 +2816,20 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
-  /embarques/import/preview:
+  /embarques/cronograma/preview:
     post:
       tags: [Embarques]
-      summary: Leer y validar un CSV de embarques (vista previa)
+      summary: Cargar cronograma (excel/csv) — vista previa
       description: |
         Solo permitido para empleados con rol de customer service.
-        Recibe un archivo CSV con múltiples embarques (una fila por
-        embarque), lo valida (tipo de archivo y estructura de columnas) y
-        regresa las filas ya interpretadas para mostrarlas en pantalla.
-        Esta operación NO guarda nada en la base de datos todavía; el
-        usuario debe confirmar con `POST /embarques/import/confirmar`.
-      operationId: previewImportEmbarques
+        Corresponde al modal "Cronograma" (subir archivo). Recibe un
+        archivo .csv o .xls con las columnas de la vista de embarques
+        (plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas),
+        valida tipo/tamaño (máx 9 MB) y estructura, y regresa las filas
+        interpretadas para mostrarlas en la tabla de la pantalla
+        "Cronograma", donde el usuario asignará el cliente manualmente
+        antes de guardar. NO guarda nada en base de datos todavía.
+      operationId: previewCronograma
       requestBody:
         required: true
         content:
@@ -2728,10 +2841,10 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Archivo .csv con los embarques a importar
+                  description: Archivo .csv o .xls con el cronograma de embarques (máx 9 MB)
       responses:
         '200':
-          description: Filas del CSV interpretadas, con errores de validación por fila si los hay
+          description: Filas del archivo interpretadas, con errores de validación por fila si los hay
           content:
             application/json:
               schema:
@@ -2741,11 +2854,11 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/EmbarqueImportRow'
+                      $ref: '#/components/schemas/CronogramaFilaPreview'
                   msg:
                     $ref: '#/components/schemas/ApiMessage'
         '415':
-          $ref: '#/components/responses/FileError'
+          $ref: '#/components/responses/CronogramaFileError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2754,24 +2867,28 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
-  /embarques/import/confirmar:
+
+  /embarques/cronograma/confirmar:
     post:
       tags: [Embarques]
-      summary: Confirmar e insertar los embarques revisados en pantalla
+      summary: Guardar cronograma con clientes asignados
       description: |
         Solo permitido para empleados con rol de customer service.
-        Recibe las filas ya revisadas (y editadas si aplicó) por el usuario
-        después de la vista previa, y las inserta en la tabla de embarques.
-      operationId: confirmImportEmbarques
+        Corresponde al botón "Guardar" de la tabla "Cronograma". Recibe
+        las filas ya revisadas por el usuario, con el cliente_id que
+        asignó manualmente por fila, y crea los embarques. El
+        empleado_customer_id se toma del usuario autenticado (columna
+        "Customer Srv" de la tabla), no viaja en el body.
+      operationId: confirmarCronograma
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/EmbarqueImportConfirm'
+              $ref: '#/components/schemas/CronogramaConfirmarRequest'
       responses:
         '201':
-          description: Embarques importados exitosamente
+          description: Embarques del cronograma guardados exitosamente
           content:
             application/json:
               schema:
@@ -2785,7 +2902,19 @@ paths:
                   msg:
                     $ref: '#/components/schemas/ApiMessage'
         '422':
-          $ref: '#/components/responses/ValidationErrorGeneric'
+          description: Error de validación (p. ej. cliente_id faltante en alguna fila)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                VAL_004:
+                  summary: Cliente no asignado en una o más filas
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_004
+                      msg: "El campo cliente_id es obligatorio"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
