@@ -2794,6 +2794,85 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
+  /embarques/{cliente}/{fecha_inicio}/{fecha_fin}/{tipo}:
+    parameters:
+    - name: cliente
+      in: path
+      required: true
+      description: id del cliente
+      schema: {type: integer}
+    - name: fecha_inicio
+      in: path
+      required: true
+      schema: {type: string, format: date}
+      example: "2024-11-01"
+    - name: fecha_fin
+      in: path
+      required: true
+      schema: {type: string, format: date}
+      example: "2024-11-30"
+    - name: tipo
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [expeditado, regular, todos]
+      description: Usar "todos" para no filtrar por tipo
+    get:
+      tags: [Embarques]
+      summary: Historial de embarques por cliente y rango de fechas
+      description: >-
+        Solo permitido para empleados con rol de customer service. Consulta
+        del historial de planes de embarque (a diferencia de
+        `GET /embarques`, que solo regresa el plan del día). Cada embarque
+        regresa también el estatus del viaje al que pertenece, si ya se le
+        asignó uno.
+      operationId: getEmbarquesHistorial
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      responses:
+        '200':
+          description: Historial de embarques del cliente en el rango de fechas indicado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, msg]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmbarqueHistorialItem'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '404':
+          description: "Cliente no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Cliente no encontrado"
+        '422':
+          $ref: '#/components/responses/ValidationErrorGeneric'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /embarques/{id}:
     parameters:
     - name: id
