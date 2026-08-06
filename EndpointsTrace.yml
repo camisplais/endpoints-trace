@@ -2178,6 +2178,114 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
+
+    /clientes/{id}/anios:
+      parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    get:
+      tags: [Documentos]
+      summary: Listar años con documentos para un cliente
+      operationId: getAniosPorCliente
+      responses:
+        '200':
+          description: Lista de años disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: {type: integer}
+                    example: [2026, 2025, 2024]
+        '404':
+          description: "Cliente no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+
+  /clientes/{id}/documentos:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    get:
+      tags: [Documentos]
+      summary: Listar documentos (pruebas de entrega) de un cliente
+      operationId: getDocumentosPorCliente
+      parameters:
+      - name: page
+        in: query
+        schema: {type: integer, default: 1}
+      - name: per_page
+        in: query
+        schema: {type: integer, default: 20}
+      - name: anio
+        in: query
+        schema: {type: integer}
+      - name: tipo_documento_id
+        in: query
+        schema: {type: integer}
+      - name: mes
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 12}
+      - name: fecha_inicio
+        in: query
+        schema: {type: string, format: date}
+      - name: fecha_fin
+        in: query
+        schema: {type: string, format: date}
+      - name: search
+        in: query
+        description: Buscar por nombre de archivo
+        schema: {type: string}
+      responses:
+        '200':
+          description: Lista de documentos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Documento'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '404':
+          description: "Cliente no encontrado"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Cliente no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
   /documentos:
     get:
       tags: [Documentos]
