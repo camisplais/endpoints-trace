@@ -83,7 +83,7 @@ components:
           pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
           example: "operador"
 
-    # ─── Empleados ───────────────────────────────────────────────────────────
+    # ─── Empleados etni ───────────────────────────────────────────────────────────
 
     Empleado:
       type: object
@@ -882,87 +882,7 @@ components:
         last_page:
           type: integer
           example: 5
-   # ─── Cronograma ─────────────────────────────────────────────────────────
 
-    CronogramaFilaPreview:
-      type: object
-      description: Una fila del archivo interpretada, con sus posibles errores. cliente_id viaja en null porque se asigna manualmente en pantalla.
-      properties:
-        fila:
-          type: integer
-          description: Número de fila en el archivo (para referencia del usuario)
-          example: 2
-        plan_embarque:
-          type: string
-          maxLength: 20
-          example: "EM-001"
-        fecha:
-          type: string
-          format: date
-          example: "2026-06-25"
-        hora:
-          type: string
-          example: "09:30:00"
-        tipo:
-          type: string
-          enum: [expeditado, regular]
-          example: "regular"
-        tarima:
-          type: integer
-          example: 4
-        cantidad_piezas:
-          type: integer
-          example: 120
-        errores:
-          type: array
-          description: Errores de validación encontrados en esta fila. Vacío si la fila es válida.
-          items:
-            type: string
-          example: []
-
-    CronogramaFilaConfirmar:
-      type: object
-      description: |
-        Fila ya revisada y con cliente_id asignado manualmente por el usuario
-        en la tabla (columna "Cliente"). empleado_customer_id NO se envía:
-        el backend lo toma del token del usuario autenticado.
-      required: [cliente_id, plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas]
-      properties:
-        cliente_id:
-          type: integer
-          description: Asignado manualmente por el usuario en la tabla antes de Guardar
-          example: 3
-        plan_embarque:
-          type: string
-          maxLength: 20
-          example: "EM-001"
-        fecha:
-          type: string
-          format: date
-          example: "2026-06-25"
-        hora:
-          type: string
-          example: "09:30:00"
-        tipo:
-          type: string
-          enum: [expeditado, regular]
-          example: "regular"
-        tarima:
-          type: integer
-          example: 4
-        cantidad_piezas:
-          type: integer
-          example: 120
-
-    CronogramaConfirmarRequest:
-      type: object
-      required: [filas]
-      properties:
-        filas:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/CronogramaFilaConfirmar'
     Error:
       type: object
       required: [data, msg]
@@ -1095,37 +1015,15 @@ components:
                 msg:
                   code: FILE_003
                   msg: "El contenido del archivo no cumple la estructura requerida"
-
-   # Igual que FileError pero con el límite de 9MB específico de cronograma.
-    CronogramaFileError:
-      description: Error relacionado con el archivo de cronograma
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          examples:
-            FILE_001:
-              summary: Tipo de archivo inválido (solo csv o xls)
-              value:
-                data: null
-                msg:
-                  code: FILE_001
-                  msg: "El formato del archivo no es el correcto"
             FILE_004:
-              summary: Archivo excede el límite de 9 MB
+              summary: Archivo excede el tamaño permitido
               value:
                 data: null
                 msg:
                   code: FILE_004
-                  msg: "El archivo no debe pesar más de 9 MB"
-            FILE_003:
-              summary: Columnas del archivo no coinciden con las esperadas
-              value:
-                data: null
-                msg:
-                  code: FILE_003
-                  msg: "El contenido del archivo no cumple la estructura requerida"
-
+                  msg: "El archivo no debe pesar mas de 20 MB"
+            
+            
 tags:
 - name: Autenticación
   description: Login con OTP propio
@@ -1281,6 +1179,114 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
+  /auth/request-change-password: 
+    post:
+      tags: [Autenticación]
+      summary: Solicitar Recuperación de Contraseña
+      description: Solicitar Recuperación de la Contraseña
+      operationId: requestChangePassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                nombre:
+                  type: string
+                  minLength: 10
+                  maxLength: 20
+                  pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
+                  example: "ecastror@clayens.com"
+      responses:
+        '200':
+          description: Solicitud enviada a tu celular
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_004
+                  msg: "El campo {nombre del campo} es obligatorio"
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /auth/change-password: 
+    post:
+      tags: [Autenticación]
+      summary: Recuperación de Contraseña
+      description: Recuperación de la Contraseña
+      operationId: changePassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                nombre:
+                  type: string
+                  minLength: 8
+                  maxLength: 20
+                  pattern: '^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]{3,20}$'
+                  example: "12345678"
+      responses:
+        '200':
+          description: Contraseña cambiada correctamente
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_004
+                  msg: "El campo {nombre del campo} es obligatorio"
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /auth/disable-account/{id}: 
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    put:
+      tags: [Autenticación]
+      summary: Desactivar Cuenta
+      description: Desactivar Cuenta
+      operationId: disableAccount
+      responses:
+        '200':
+          description: Cuenta Desactivada Correctamente
+        '422':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_004
+                  msg: "El campo {nombre del campo} es obligatorio"
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'        
   /roles:
     get:
       tags: [Roles]
@@ -1507,24 +1513,33 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
         '504':
-          $ref: '#/components/responses/RequestTimeout'
-    post:
+          $ref: '#/components/responses/RequestTimeout' 
+post: 
       tags: [Empleados]
-      summary: Crear empleado
+      summary: Crear empleados
       operationId: createEmpleado
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/EmpleadoCreate'
+              type: object
+              required: [archivo]
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+                  description: >
+                    Archivo Excel (.xlsx) con columnas: no_empleado, nombre,
+                    apellido_paterno, apellido_materno (opcional), fecha_nacimiento (YYYY-MM-DD),
+                    fecha_ingreso (YYYY-MM-DD), departamento (supplyChain|transportes|seguridad), puesto.
       responses:
         '201':
           description: Empleado creado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Empleado'
+                $ref: '#/components/schemas/EmpleadoCreate'
         '409':
           description: "no_empleado ya registrado"
           content:
@@ -1558,6 +1573,20 @@ paths:
                     msg:
                       code: VAL_007
                       msg: "El campo no cumple con el formato requerido"
+                VAL_008:
+                  summary: "Columnas faltantes en el archivo"
+                  value:
+                    data: null
+                    msg:
+                      code: VAL_008
+                      msg: "El archivo no contiene todas las columnas requeridas"
+                FILE_004:
+                  summary: Archivo excede el tamaño permitido
+                  value:
+                    data: null
+                    msg:
+                      code: FILE_004 
+                      msg: "El archivo no debe pesar mas de 20 MB"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2178,114 +2207,6 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
-
-    /clientes/{id}/anios:
-      parameters:
-    - name: id
-      in: path
-      required: true
-      schema: {type: integer}
-    get:
-      tags: [Documentos]
-      summary: Listar años con documentos para un cliente
-      operationId: getAniosPorCliente
-      responses:
-        '200':
-          description: Lista de años disponibles
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: {type: integer}
-                    example: [2026, 2025, 2024]
-        '404':
-          description: "Cliente no encontrado"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                data: null
-                msg:
-                  code: VAL_005
-                  msg: "Cliente no encontrado"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-        '504':
-          $ref: '#/components/responses/RequestTimeout'
-
-  /clientes/{id}/documentos:
-    parameters:
-    - name: id
-      in: path
-      required: true
-      schema: {type: integer}
-    get:
-      tags: [Documentos]
-      summary: Listar documentos (pruebas de entrega) de un cliente
-      operationId: getDocumentosPorCliente
-      parameters:
-      - name: page
-        in: query
-        schema: {type: integer, default: 1}
-      - name: per_page
-        in: query
-        schema: {type: integer, default: 20}
-      - name: anio
-        in: query
-        schema: {type: integer}
-      - name: tipo_documento_id
-        in: query
-        schema: {type: integer}
-      - name: mes
-        in: query
-        schema: {type: integer, minimum: 1, maximum: 12}
-      - name: fecha_inicio
-        in: query
-        schema: {type: string, format: date}
-      - name: fecha_fin
-        in: query
-        schema: {type: string, format: date}
-      - name: search
-        in: query
-        description: Buscar por nombre de archivo
-        schema: {type: string}
-      responses:
-        '200':
-          description: Lista de documentos
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Documento'
-                  meta:
-                    $ref: '#/components/schemas/PaginatedMeta'
-        '404':
-          description: "Cliente no encontrado"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                data: null
-                msg:
-                  code: VAL_005
-                  msg: "Cliente no encontrado"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-        '504':
-          $ref: '#/components/responses/RequestTimeout'
   /documentos:
     get:
       tags: [Documentos]
@@ -2734,7 +2655,7 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
-    put:
+    patch:
       tags: [Transporte]
       summary: Actualizar transporte
       operationId: updateTransporte
@@ -2743,7 +2664,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TransporteCreate'
+              type: object
+              properties:
+                placas:
+                  type: string
+                  minLength: 10
+                  maxLength: 10
+                imagen:
+                  type: string
+                  minLength: 10
+                  maxLength: 255
       responses:
         '200':
           description: Transporte actualizado
@@ -2802,6 +2732,46 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /transporte:
+    parameters:
+    - name: estado
+      in: query
+      required: true
+      schema: {type: string, enum:['en viaje','en planta']}
+    get:
+      tags: [Transporte]
+      summary: Obtener transporte por estado
+      operationId: getTransportesByStatus
+      responses:
+        '200':
+          description: Transportes encontrados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, msg]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Transporte'
+                  msg:
+                    $ref: '#/components/schemas/ApiMessage'
+        '404':
+          description: "Transportes no encontrados"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Transporte no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
         '504':
@@ -2924,20 +2894,18 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
-  /embarques/cronograma/preview:
+  /embarques/import/preview:
     post:
       tags: [Embarques]
-      summary: Cargar cronograma (excel/csv) — vista previa
+      summary: Leer y validar un CSV de embarques (vista previa)
       description: |
         Solo permitido para empleados con rol de customer service.
-        Corresponde al modal "Cronograma" (subir archivo). Recibe un
-        archivo .csv o .xls con las columnas de la vista de embarques
-        (plan_embarque, fecha, hora, tipo, tarima, cantidad_piezas),
-        valida tipo/tamaño (máx 9 MB) y estructura, y regresa las filas
-        interpretadas para mostrarlas en la tabla de la pantalla
-        "Cronograma", donde el usuario asignará el cliente manualmente
-        antes de guardar. NO guarda nada en base de datos todavía.
-      operationId: previewCronograma
+        Recibe un archivo CSV con múltiples embarques (una fila por
+        embarque), lo valida (tipo de archivo y estructura de columnas) y
+        regresa las filas ya interpretadas para mostrarlas en pantalla.
+        Esta operación NO guarda nada en la base de datos todavía; el
+        usuario debe confirmar con `POST /embarques/import/confirmar`.
+      operationId: previewImportEmbarques
       requestBody:
         required: true
         content:
@@ -2949,10 +2917,10 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Archivo .csv o .xls con el cronograma de embarques (máx 9 MB)
+                  description: Archivo .csv con los embarques a importar
       responses:
         '200':
-          description: Filas del archivo interpretadas, con errores de validación por fila si los hay
+          description: Filas del CSV interpretadas, con errores de validación por fila si los hay
           content:
             application/json:
               schema:
@@ -2962,11 +2930,11 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CronogramaFilaPreview'
+                      $ref: '#/components/schemas/EmbarqueImportRow'
                   msg:
                     $ref: '#/components/schemas/ApiMessage'
         '415':
-          $ref: '#/components/responses/CronogramaFileError'
+          $ref: '#/components/responses/FileError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2975,28 +2943,24 @@ paths:
           $ref: '#/components/responses/ServerError'
         '504':
           $ref: '#/components/responses/RequestTimeout'
-
-  /embarques/cronograma/confirmar:
+  /embarques/import/confirmar:
     post:
       tags: [Embarques]
-      summary: Guardar cronograma con clientes asignados
+      summary: Confirmar e insertar los embarques revisados en pantalla
       description: |
         Solo permitido para empleados con rol de customer service.
-        Corresponde al botón "Guardar" de la tabla "Cronograma". Recibe
-        las filas ya revisadas por el usuario, con el cliente_id que
-        asignó manualmente por fila, y crea los embarques. El
-        empleado_customer_id se toma del usuario autenticado (columna
-        "Customer Srv" de la tabla), no viaja en el body.
-      operationId: confirmarCronograma
+        Recibe las filas ya revisadas (y editadas si aplicó) por el usuario
+        después de la vista previa, y las inserta en la tabla de embarques.
+      operationId: confirmImportEmbarques
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CronogramaConfirmarRequest'
+              $ref: '#/components/schemas/EmbarqueImportConfirm'
       responses:
         '201':
-          description: Embarques del cronograma guardados exitosamente
+          description: Embarques importados exitosamente
           content:
             application/json:
               schema:
@@ -3009,97 +2973,6 @@ paths:
                       $ref: '#/components/schemas/Embarque'
                   msg:
                     $ref: '#/components/schemas/ApiMessage'
-        '422':
-          description: Error de validación (p. ej. cliente_id faltante en alguna fila)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                VAL_004:
-                  summary: Cliente no asignado en una o más filas
-                  value:
-                    data: null
-                    msg:
-                      code: VAL_004
-                      msg: "El campo cliente_id es obligatorio"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/ServerError'
-        '504':
-          $ref: '#/components/responses/RequestTimeout'
-  /embarques/{cliente}/{fecha_inicio}/{fecha_fin}/{tipo}:
-    parameters:
-    - name: cliente
-      in: path
-      required: true
-      description: id del cliente
-      schema: {type: integer}
-    - name: fecha_inicio
-      in: path
-      required: true
-      schema: {type: string, format: date}
-      example: "2024-11-01"
-    - name: fecha_fin
-      in: path
-      required: true
-      schema: {type: string, format: date}
-      example: "2024-11-30"
-    - name: tipo
-      in: path
-      required: true
-      schema:
-        type: string
-        enum: [expeditado, regular, todos]
-      description: Usar "todos" para no filtrar por tipo
-    get:
-      tags: [Embarques]
-      summary: Historial de embarques por cliente y rango de fechas
-      description: >-
-        Solo permitido para empleados con rol de customer service. Consulta
-        del historial de planes de embarque (a diferencia de
-        `GET /embarques`, que solo regresa el plan del día). Cada embarque
-        regresa también el estatus del viaje al que pertenece, si ya se le
-        asignó uno.
-      operationId: getEmbarquesHistorial
-      parameters:
-      - name: page
-        in: query
-        schema: {type: integer, default: 1}
-      - name: per_page
-        in: query
-        schema: {type: integer, default: 20}
-      responses:
-        '200':
-          description: Historial de embarques del cliente en el rango de fechas indicado
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data, meta, msg]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/EmbarqueHistorialItem'
-                  meta:
-                    $ref: '#/components/schemas/PaginatedMeta'
-                  msg:
-                    $ref: '#/components/schemas/ApiMessage'
-        '404':
-          description: "Cliente no encontrado"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                data: null
-                msg:
-                  code: VAL_005
-                  msg: "Cliente no encontrado"
         '422':
           $ref: '#/components/responses/ValidationErrorGeneric'
         '401':
@@ -4182,6 +4055,48 @@ paths:
                 msg:
                   code: VAL_005
                   msg: "Solicitud no encontrado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '504':
+          $ref: '#/components/responses/RequestTimeout'
+  /solicitudes:
+    parameters:
+    - name: tipo
+      in: query
+      required: false
+      schema: {type: string}
+    - name: fecha
+      in: query
+      required: false
+      schema: {type: string,format: date}
+    - name: estado
+      in: query
+      required: false
+      schema: {type: string,enum: [aceptado,rechazado]}
+    get:
+      tags: [Solicitudes]
+      summary: Obtener solicitudes por tipo,fecha,estado
+      operationId: getSolicitudes
+      responses:
+        '200':
+          description: Solicitudes encontradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Solicitud'
+        '404':
+          description: "Solicitud no encontrada"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                data: null
+                msg:
+                  code: VAL_005
+                  msg: "Solicitudes no encontradas"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
