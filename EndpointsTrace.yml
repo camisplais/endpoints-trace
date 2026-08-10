@@ -1901,7 +1901,7 @@ paths:
     patch:
       tags: [Usuarios]
       summary: Cambiar contraseña
-      operationId: changePassword
+      operationId: changeUserPassword
       requestBody:
         required: true
         content:
