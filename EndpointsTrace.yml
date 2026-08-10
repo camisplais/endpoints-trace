@@ -378,6 +378,7 @@ components:
           oneOf:
           - type: object
           - type: array
+            items: {}
           - type: string
           - type: integer
           - type: number
